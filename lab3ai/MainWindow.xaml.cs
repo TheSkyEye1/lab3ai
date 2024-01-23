@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data.SQLite;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -28,6 +29,7 @@ namespace lab3ai
         WriteableBitmap wb;
         MLP Perceptron;
         bool isTrained = false;
+        string dbPath = "Perc.db";
         public MainWindow()
         {
             InitializeComponent();
@@ -217,13 +219,12 @@ namespace lab3ai
                 }
             }
 
-            Perceptron = new MLP(783, 30, 10);
+            Perceptron = new MLP(783, 65, 10);
 
             int curpos = 0;
             int maxval = dataSet.Count * 10;
-            pb.Maximum = maxval;
 
-            for(int i = 0; i<2; i++)
+            for(int i = 0; i<15; i++)
             {
                 foreach(DataSet dataSet in trainData)
                 {
@@ -257,14 +258,147 @@ namespace lab3ai
             else return 0;
         }
 
-        private async Task UpdateProgressBarAsync(int value)
+        private void Button_Click_2(object sender, RoutedEventArgs e)
         {
-            // Обновляем ProgressBar через Dispatcher
-            await Application.Current.Dispatcher.InvokeAsync(() =>
+            int count = dataSet.Count;
+            int correct = 0;
+
+            foreach(DataSet dataSet in dataSet)
             {
-                pb.Value = value;
-            });
+                Perceptron.setInput(createinput(dataSet));
+                Perceptron.forwardPass();
+                double[] answer = Perceptron.getOutput();
+                double maxValue = answer.Max();
+                int maxIndex = Array.IndexOf(answer, maxValue);
+
+                if(maxIndex == dataSet.number)
+                {
+                    correct++;
+                }
+
+            }
+
+            double perc = ((double)correct / (double)count) * 100;
+            perc = Math.Round(perc, 2);
+
+            labl.Content = perc + "%     " + correct + "/" + count;
+
         }
 
+        private void savePerc()
+        {
+            int counter = 0;
+            foreach (Hidden h in Perceptron.hiddens)
+            {
+                string tableName = "hidden" + counter;
+                using (SQLiteConnection connection = new SQLiteConnection($"Data Source={dbPath}; Version=3;"))
+                {
+                    connection.Open();
+                    string insertHiddenLayerQuery = $"INSERT INTO {tableName} (Value, Bias) VALUES (@Value, @Bias); SELECT last_insert_rowid();";
+                    using (SQLiteCommand insertHiddenLayerCommand = new SQLiteCommand(insertHiddenLayerQuery, connection))
+                    {
+                        InsertWeights(h.inputW, $"InputW_{tableName}", counter, connection);
+                        InsertWeights(h.outputW, $"OutputW_{tableName}", counter, connection);
+                    }
+                }
+                counter++;
+            }
+        }
+        static void InsertWeights(List<double> weights, string columnName, int hiddenLayerId, SQLiteConnection connection)
+        {
+            string createTableQuery = $"CREATE TABLE IF NOT EXISTS {columnName} (Id INTEGER PRIMARY KEY AUTOINCREMENT, Weight REAL, HiddenLayerId INTEGER);";
+            using (SQLiteCommand createTableCommand = new SQLiteCommand(createTableQuery, connection))
+            {
+                createTableCommand.ExecuteNonQuery();
+            }
+            string insertWeightsQuery = $"INSERT INTO {columnName} (Weight, HiddenLayerId) VALUES (@Weight, @HiddenLayerId);";
+            using (SQLiteCommand insertWeightsCommand = new SQLiteCommand(insertWeightsQuery, connection))
+            {
+                foreach (double weight in weights)
+                {
+                    insertWeightsCommand.Parameters.AddWithValue("@Weight", weight);
+                    insertWeightsCommand.Parameters.AddWithValue("@HiddenLayerId", hiddenLayerId);
+                    insertWeightsCommand.ExecuteNonQuery();
+                }
+            }
+        }
+
+        private void Button_Click_3(object sender, RoutedEventArgs e)
+        {
+            savePerc();
+            MessageBox.Show("Saving Complete");
+        }
+
+        private List<Hidden> LoadHiddenLayers(string path)
+        {
+            List<Hidden> hiddenLayers = new List<Hidden>();
+            int counter = 0;
+
+            using (SQLiteConnection connection = new SQLiteConnection($"Data Source={path}; Version=3;"))
+            {
+                connection.Open();
+                while (true)
+                {
+                    string tableName = "InputW_hidden" + counter;
+                    string checkTableQuery = $"SELECT name FROM sqlite_master WHERE type='table' AND name='{tableName}';";
+                    using (SQLiteCommand checkTableCommand = new SQLiteCommand(checkTableQuery, connection))
+                    {
+                        object result = checkTableCommand.ExecuteScalar();
+
+                        if (result == null || result == DBNull.Value)
+                        {
+                            break;
+                        }
+                    }
+                    Hidden hiddenLayer = new Hidden();
+                    hiddenLayer.inputW = LoadWeights($"InputW_hidden{counter}", connection);
+                    hiddenLayer.outputW = LoadWeights($"OutputW_hidden{counter}", connection);
+                    hiddenLayers.Add(hiddenLayer);
+                    counter++;
+                }
+            }
+
+            return hiddenLayers;
+        }
+
+        private List<double> LoadWeights(string columnName, SQLiteConnection connection)
+        {
+            List<double> weights = new List<double>();
+            string checkTableQuery = $"SELECT name FROM sqlite_master WHERE type='table' AND name='{columnName}';";
+            using (SQLiteCommand checkTableCommand = new SQLiteCommand(checkTableQuery, connection))
+            {
+                object result = checkTableCommand.ExecuteScalar();
+
+                if (result != null && result != DBNull.Value)
+                {
+                    // Таблица весов существует, загружаем данные
+                    string loadWeightsQuery = $"SELECT Weight FROM {columnName};";
+                    using (SQLiteCommand loadWeightsCommand = new SQLiteCommand(loadWeightsQuery, connection))
+                    {
+                        using (SQLiteDataReader reader = loadWeightsCommand.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                double weight = Convert.ToDouble(reader["Weight"]);
+                                weights.Add(weight);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return weights;
+        }
+
+        private void Button_Click_4(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog dlg = new OpenFileDialog();
+            dlg.ShowDialog();
+            List<Hidden> hiddens = LoadHiddenLayers(dlg.FileName);
+            Perceptron = new MLP(783, hiddens.Count, 10);
+            Perceptron.setHiddens(hiddens);
+            isTrained = true;
+            MessageBox.Show("Loading Complete");
+        }
     }
 }

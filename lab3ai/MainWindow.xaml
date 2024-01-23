@@ -19,6 +19,9 @@
         <Label Content="Ze number is" HorizontalAlignment="Left" Height="34" Margin="130,433,0,0" VerticalAlignment="Top" Width="102"/>
         <Label x:Name="NumberLB" Content="" HorizontalAlignment="Left" Height="34" Margin="220,433,0,0" VerticalAlignment="Top" Width="102"/>
         <Label x:Name="OutDataLB" Content="" HorizontalAlignment="Center" Height="33" Margin="0,477,0,0" VerticalAlignment="Top" Width="776"/>
-        <ProgressBar x:Name="pb" HorizontalAlignment="Left" Height="31" Margin="10,549,0,0" VerticalAlignment="Top" Width="600"/>
+        <Button Content="Calculate" HorizontalAlignment="Left" Height="36" Margin="10,516,0,0" VerticalAlignment="Top" Width="112" Click="Button_Click_2"/>
+        <Label x:Name="labl" Content="" HorizontalAlignment="Left" Height="41" Margin="138,516,0,0" VerticalAlignment="Top" Width="258"/>
+        <Button Content="Save" HorizontalAlignment="Left" Height="36" Margin="675,433,0,0" VerticalAlignment="Top" Width="112" Click="Button_Click_3"/>
+        <Button Content="Load" HorizontalAlignment="Left" Height="36" Margin="675,476,0,0" VerticalAlignment="Top" Width="112" Click="Button_Click_4"/>
     </Grid>
 </Window>

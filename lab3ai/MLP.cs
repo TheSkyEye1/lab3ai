@@ -9,26 +9,17 @@ namespace lab3ai
     internal class MLP
     {
         List<double> inputs = new List<double>();
-        List<Hidden> hiddens = new List<Hidden>();
+        public List<Hidden> hiddens = new List<Hidden>();
         List<double> outputs = new List<double>();
         Random rng = new Random();
-
         double sigmoid(double x)
         {
             return 1.0/(1+Math.Exp(-x));
         }
-
         double d_sigmoid(double x)
         {
             return sigmoid(x) * (1 - sigmoid(x));
         }
-
-
-
-
-
-
-
         double LReLU(double x, double alpha = 0.01)
         {
             return x > 0 ? x : alpha * x;
@@ -147,5 +138,12 @@ namespace lab3ai
             Random rand = new Random();
             return rand.NextDouble() < 0.2;
         }
+
+        public void setHiddens(List<Hidden> list)
+        {
+            this.hiddens = list;
+        }
+
+        
     }
 }
